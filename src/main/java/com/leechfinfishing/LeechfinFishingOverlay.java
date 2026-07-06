@@ -8,10 +8,8 @@ import java.awt.Polygon;
 import javax.inject.Inject;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
-import net.runelite.api.Player;
 import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
-import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.ui.overlay.OverlayUtil;
 import net.runelite.client.ui.overlay.Overlay;
 import net.runelite.client.ui.overlay.OverlayLayer;
@@ -41,27 +39,6 @@ public class LeechfinFishingOverlay extends Overlay
 	{
 		WorldView worldView = client.getTopLevelWorldView();
 		if (worldView == null)
-		{
-			return null;
-		}
-
-		Player localPlayer = client.getLocalPlayer();
-		if (localPlayer == null)
-		{
-			return null;
-		}
-
-		WorldPoint playerLocation = localPlayer.getWorldLocation();
-		if (playerLocation == null)
-		{
-			return null;
-		}
-
-		// only run renderer if player is on one of the leechfin bridges
-		if (
-			!playerLocation.isInArea(LeechfinFishingPlugin.LEECHFIN_WEST)
-			&& !playerLocation.isInArea(LeechfinFishingPlugin.LEECHFIN_EAST)
-		)
 		{
 			return null;
 		}

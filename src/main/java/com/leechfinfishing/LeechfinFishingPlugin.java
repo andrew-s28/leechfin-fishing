@@ -47,17 +47,12 @@ public class LeechfinFishingPlugin extends Plugin
 	private static final int MAX_NORTH_DISTANCE = 5 * Perspective.LOCAL_TILE_SIZE;
 	private static final int MAX_X_OFFSET = 2 * Perspective.LOCAL_TILE_SIZE;
 
-	// areas to use for activating plugin, covers the bridges
-	public static final WorldArea LEECHFIN_WEST = new WorldArea(2707, 7817, 6, 6, 0);
-	public static final WorldArea LEECHFIN_EAST = new WorldArea(2718, 7823, 6, 6, 0);
-
 	private @Getter List<LocalPoint> leechfinFishingPoints;
 	private @Getter LocalPoint closestLeechfinFishingPoint;
 	private @Getter Projectile activeLeechfin;
 	private @Getter LocalPoint activeLeechfinPoint;
 	private @Getter Projectile nextLeechfin;
 	private @Getter LocalPoint nextLeechfinPoint;
-
 
 	@Inject
 	private OverlayManager overlayManager;
