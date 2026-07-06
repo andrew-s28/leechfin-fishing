@@ -7,7 +7,6 @@ import java.awt.Graphics2D;
 import java.awt.Polygon;
 import javax.inject.Inject;
 import net.runelite.api.Client;
-import net.runelite.api.GameObject;
 import net.runelite.api.Perspective;
 import net.runelite.api.Player;
 import net.runelite.api.WorldView;
@@ -20,11 +19,11 @@ import net.runelite.client.ui.overlay.OverlayPosition;
 
 public class LeechfinFishingOverlay extends Overlay
 {
-	Client client;
+	private final Client client;
 
-	LeechfinFishingPlugin plugin;
+	private final LeechfinFishingPlugin plugin;
 
-	LeechfinFishingConfig config;
+	private final LeechfinFishingConfig config;
 
 	@Inject
 	public LeechfinFishingOverlay(Client client, LeechfinFishingPlugin plugin, LeechfinFishingConfig config)
@@ -67,73 +66,88 @@ public class LeechfinFishingOverlay extends Overlay
 			return null;
 		}
 
-		// render only the central tile when not actively fishing
-		if (!LeechfinFishingPlugin.isLeechfinFishing(client))
+		if (plugin.isLeechfinFishing())
 		{
-			renderLeechfinFishingSpotTile(graphics, worldView);
-		}
-
-		// render leechfin tiles only when actively fishing
-		if (LeechfinFishingPlugin.isLeechfinFishing(client))
-		{
+			// render leechfin tiles only when actively fishing
 			renderLeechfinTiles(graphics, worldView);
+		}
+		else
+		{
+			// render only the central tile when not actively fishing
+			renderLeechfinFishingSpotTile(graphics);
 		}
 
 		return null;
 	}
 
-	private void renderLeechfinFishingSpotTile(Graphics2D graphics, WorldView worldView)
+	private void renderLeechfinFishingSpotTile(Graphics2D graphics)
 	{
-		GameObject leechfinFishingSpot = LeechfinFishingPlugin.getLeechfinFishingSpot(client, worldView);
-		if (leechfinFishingSpot == null)
+		Color color = LeechfinFishingPlugin.isInventoryFull(client)
+			? config.fullInventoryColor()
+			: config.leechfinSpotColor();
+		for (LocalPoint leechfinFishingSpot : plugin.getLeechfinFishingPoints())
 		{
-			return;
-		}
-		LocalPoint tileToHighlight = new LocalPoint(leechfinFishingSpot.getX(), leechfinFishingSpot.getY(), worldView);
-
-		if (LeechfinFishingPlugin.isInventoryFull(client))
-		{
-			renderTileOverlay(graphics, tileToHighlight, config.fullInventoryColor());
-		} else {
-			renderTileOverlay(graphics, tileToHighlight, config.leechfinSpotColor());
+			renderTileOverlay(
+				graphics,
+				leechfinFishingSpot,
+				color
+			);
 		}
 	}
 
 	private void renderLeechfinTiles(Graphics2D graphics, WorldView worldView)
 	{
-		GameObject leechfinFishingSpot = LeechfinFishingPlugin.getLeechfinFishingSpot(client, worldView);
-		if (leechfinFishingSpot == null)
+		if (plugin.getClosestLeechfinFishingPoint() == null)
 		{
 			return;
 		}
-		LocalPoint leechfinFishingSpotPoint = leechfinFishingSpot.getLocalLocation();
-
-		if (config.highlightActiveTile() && LeechfinFishingPlugin.activeLeechfin != null)
+		if (config.highlightActiveTile())
 		{
-			LocalPoint activeLeechfinPoint = LeechfinFishingPlugin.getLeechfinPoint(worldView, LeechfinFishingPlugin.activeLeechfin);
-			if (activeLeechfinPoint != null){
-				int dy = Math.abs(activeLeechfinPoint.getY() - leechfinFishingSpotPoint.getY());
-				if (dy < 5 * 128)
-				{
-					LocalPoint tileToHighlight = new LocalPoint(activeLeechfinPoint.getX(), leechfinFishingSpotPoint.getY(), worldView);
-					renderTileOverlay(graphics, tileToHighlight, config.activeHighlightColor(), config.activeFillColor());
-				}
-			}
+			renderLeechfinTileOverlay(
+				graphics,
+				worldView,
+				plugin.getActiveLeechfinPoint(),
+				0,
+				config.activeHighlightColor(),
+				config.activeFillColor()
+			);
 		}
 
-		if (config.highlightNextTile() && LeechfinFishingPlugin.nextLeechfin != null)
+		if (config.highlightNextTile())
 		{
-			LocalPoint nextLeechfinPoint = LeechfinFishingPlugin.getLeechfinPoint(worldView, LeechfinFishingPlugin.nextLeechfin);
-			if (nextLeechfinPoint != null)
-			{
-				int dy = Math.abs(nextLeechfinPoint.getY() - leechfinFishingSpotPoint.getY());
-				if (dy < 5 * 128)
-				{
-					LocalPoint tileToHighlight = new LocalPoint(nextLeechfinPoint.getX(), leechfinFishingSpotPoint.dy(128).getY(), worldView);
-					renderTileOverlay(graphics, tileToHighlight, config.nextHighlightColor(), config.nextFillColor());
-				}
-			}
+			renderLeechfinTileOverlay(
+				graphics,
+				worldView,
+				plugin.getNextLeechfinPoint(),
+				1,
+				config.nextHighlightColor(),
+				config.nextFillColor()
+			);
 		}
+	}
+
+	private void renderLeechfinTileOverlay(
+		Graphics2D graphics,
+		WorldView worldView,
+		LocalPoint leechfinPoint,
+		int yOffset,
+		Color highlightColor,
+		Color fillColor
+	)
+	{
+		if (leechfinPoint == null)
+		{
+			return;
+		}
+		LocalPoint tileToHighlight = new LocalPoint(
+			leechfinPoint.getX(),
+			plugin.getClosestLeechfinFishingPoint()
+				.dy(yOffset * Perspective.LOCAL_TILE_SIZE).
+				getY(),
+			worldView
+		);
+		renderTileOverlay(graphics, tileToHighlight, highlightColor, fillColor);
+
 	}
 
 	private void renderTileOverlay(Graphics2D graphics, LocalPoint localPoint, Color color)

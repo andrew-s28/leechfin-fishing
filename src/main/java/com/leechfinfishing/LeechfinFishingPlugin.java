@@ -5,16 +5,18 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import javax.inject.Inject;
+import lombok.Getter;
 import net.runelite.api.Client;
+import net.runelite.api.Constants;
 import net.runelite.api.GameObject;
 import net.runelite.api.ItemContainer;
+import net.runelite.api.Perspective;
+import net.runelite.api.Player;
 import net.runelite.api.Projectile;
-import net.runelite.api.Scene;
 import net.runelite.api.Tile;
 import net.runelite.api.WorldView;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldArea;
-import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.client.config.ConfigManager;
@@ -34,15 +36,28 @@ public class LeechfinFishingPlugin extends Plugin
 {
 	public static final Logger log = LoggerFactory.getLogger(LeechfinFishingPlugin.class);
 
+	// manually coded ids until api updated
+	// varbit used to determine if actively fishing leechfin spot
 	public static final int ACTIVE_VARBIT_ID = 15454;
-	// radius within which to consider a valid leechfin fishing spot
-	public static final int SEARCH_RADIUS = 5;
+	// leechfin projectile and leechfin fishing spot game object ids
+	public static final int LEECHFIN_ID = 3992;
+	public static final int LEECHFIN_FISHING_SPOT_ID = 62193;
+
+	private static final int CLIENT_TICKS_PER_GAME_TICK = Constants.GAME_TICK_LENGTH / Constants.CLIENT_TICK_LENGTH;
+	private static final int MAX_NORTH_DISTANCE = 5 * Perspective.LOCAL_TILE_SIZE;
+	private static final int MAX_X_OFFSET = 2 * Perspective.LOCAL_TILE_SIZE;
+
+	// areas to use for activating plugin, covers the bridges
 	public static final WorldArea LEECHFIN_WEST = new WorldArea(2707, 7817, 6, 6, 0);
 	public static final WorldArea LEECHFIN_EAST = new WorldArea(2718, 7823, 6, 6, 0);
-	public static final int LeechfinID = 3992;
-	public static final int LeechfinFishingSpotID = 62193;
-	public static Projectile activeLeechfin;
-	public static Projectile nextLeechfin;
+
+	private @Getter List<LocalPoint> leechfinFishingPoints;
+	private @Getter LocalPoint closestLeechfinFishingPoint;
+	private @Getter Projectile activeLeechfin;
+	private @Getter LocalPoint activeLeechfinPoint;
+	private @Getter Projectile nextLeechfin;
+	private @Getter LocalPoint nextLeechfinPoint;
+
 
 	@Inject
 	private OverlayManager overlayManager;
@@ -57,7 +72,7 @@ public class LeechfinFishingPlugin extends Plugin
 	private LeechfinFishingOverlay overlay;
 
 	@Override
-	protected void startUp()
+	protected void startUp() throws Exception
 	{
 		log.debug("Leechfin Fishing started!");
 		overlayManager.add(overlay);
@@ -79,68 +94,96 @@ public class LeechfinFishingPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		List<Projectile> leechfin = getSortedLeechfin(client.getTopLevelWorldView());
-		if (leechfin == null)
+		WorldView worldView = client.getTopLevelWorldView();
+
+		leechfinFishingPoints = findLeechfinFishingPoints(worldView);
+		// no fishing spots found
+		if (leechfinFishingPoints.isEmpty())
 		{
+			activeLeechfin = null;
+			activeLeechfinPoint = null;
+			nextLeechfin = null;
+			nextLeechfinPoint = null;
 			return;
 		}
 
+		closestLeechfinFishingPoint = findClosestLeechfinFishingPoint(client.getLocalPlayer());
+		if (closestLeechfinFishingPoint == null)
+		{
+			activeLeechfin = null;
+			activeLeechfinPoint = null;
+			nextLeechfin = null;
+			nextLeechfinPoint = null;
+			return;
+		}
+
+		List<Projectile> leechfin = getSortedLeechfin();
+		// no leechfin on screen
 		if (leechfin.isEmpty())
 		{
 			activeLeechfin = null;
+			activeLeechfinPoint = null;
 			nextLeechfin = null;
+			nextLeechfinPoint = null;
 			return;
 		}
 
-		// ensure active is still valid
+		// ensure active is still valid, set if not
 		if (activeLeechfin == null || !leechfin.contains(activeLeechfin))
 		{
 			activeLeechfin = leechfin.get(0);
 		}
+		activeLeechfinPoint = findLeechfinPoint(worldView, activeLeechfin);
 
+		// now find next leechfin with a different x position
 		nextLeechfin = findNextLeechfin(activeLeechfin, leechfin);
+		nextLeechfinPoint = findLeechfinPoint(worldView, nextLeechfin);
 	}
 
-	private List<Projectile> getSortedLeechfin(WorldView worldView)
+	private List<Projectile> getSortedLeechfin()
 	{
 		List<Projectile> list = new ArrayList<>();
-		GameObject leechfinFishingSpot = getLeechfinFishingSpot(client, worldView);
-		if (leechfinFishingSpot == null)
+		for (Projectile leechfinProjectile : client.getProjectiles())
 		{
-			return null;
-		}
-		LocalPoint leechfinFishingSpotPoint = leechfinFishingSpot.getLocalLocation();
-
-		for (Projectile p : client.getProjectiles())
-		{
-			if (p.getId() != LeechfinFishingPlugin.LeechfinID)
-			{
-				continue;
-			}
-			LocalPoint pLocalPoint = LocalPoint.fromWorld(client, p.getSourcePoint());
-			if (pLocalPoint == null)
-			{
-				continue;
-			}
-			if (pLocalPoint.getY() >= leechfinFishingSpotPoint.dy(128 * 5 + 1).getY())
-			{
-				continue;
-			}
-			if (Math.abs(pLocalPoint.getX() - leechfinFishingSpotPoint.getX()) > 2 * 128)
-			{
-				continue;
-			}
-			// 30 game cycles to a game tick
-			if (p.getRemainingCycles() <= 30)
+			if (!isValidLeechfin(leechfinProjectile))
 			{
 				continue;
 			}
 
-			list.add(p);
+			list.add(leechfinProjectile);
 		}
 
 		list.sort(Comparator.comparingDouble(Projectile::getRemainingCycles));
 		return list;
+	}
+
+	private boolean isValidLeechfin(Projectile leechfinProjectile)
+	{
+		if (leechfinProjectile.getId() != LEECHFIN_ID)
+		{
+			return false;
+		}
+		LocalPoint pLocalSourcePoint = LocalPoint.fromWorld(client, leechfinProjectile.getSourcePoint());
+		if (pLocalSourcePoint == null)
+		{
+			return false;
+		}
+		// if source is more than 5 tiles north, don't include
+		if (pLocalSourcePoint.getY() > closestLeechfinFishingPoint.dy(MAX_NORTH_DISTANCE).getY())
+		{
+			return false;
+		}
+		// if source is more 2 tiles east or west, don't include
+		if (Math.abs(pLocalSourcePoint.getX() - closestLeechfinFishingPoint.getX()) > MAX_X_OFFSET)
+		{
+			return false;
+		}
+		// if remaining cycles is less than a tick, don't include, it's too late to click
+		if (leechfinProjectile.getRemainingCycles() <= CLIENT_TICKS_PER_GAME_TICK)
+		{
+			return false;
+		}
+		return true;
 	}
 
 	private Projectile findNextLeechfin(Projectile active, List<Projectile> list)
@@ -157,7 +200,12 @@ public class LeechfinFishingPlugin extends Plugin
 		{
 			return list.isEmpty() ? null : list.get(0);
 		}
-
+		// if active is last list index, next would be out of range, so just return active
+		if (idx + 1 >= list.size())
+		{
+			return null;
+		}
+		// if next has the same x as active, skip to the next after that
 		if (list.get(idx).getSourcePoint().getX() == list.get(idx + 1).getSourcePoint().getX())
 		{
 			return findNextLeechfin(list.get(idx + 1), list);
@@ -169,26 +217,22 @@ public class LeechfinFishingPlugin extends Plugin
 	public static boolean isInventoryFull(Client client)
 	{
 		ItemContainer inventory = client.getItemContainer(InventoryID.INV);
-		boolean inventoryFull = false;
-		if (inventory != null)
-		{
-			int freeSlots = inventory.size() - inventory.count();
-			if (freeSlots == 0) {
-				inventoryFull = true;
-			}
-		}
-		return inventoryFull;
+		return inventory != null && inventory.size() <= inventory.count();
 	}
 
-	public static boolean isLeechfinFishing(Client client)
+	public boolean isLeechfinFishing()
 	{
 		return client.getVarbitValue(LeechfinFishingPlugin.ACTIVE_VARBIT_ID) == 1;
 	}
 
-	public static LocalPoint getLeechfinPoint(WorldView worldView, Projectile projectile)
+	private LocalPoint findLeechfinPoint(WorldView worldView, Projectile projectile)
 	{
+		if (projectile == null)
+		{
+			return null;
+		}
 		int projectileId = projectile.getId();
-		if (projectileId != LeechfinFishingPlugin.LeechfinID)
+		if (projectileId != LEECHFIN_ID)
 		{
 			return null;
 		}
@@ -199,11 +243,27 @@ public class LeechfinFishingPlugin extends Plugin
 		return new LocalPoint(x, y, worldView);
 	}
 
-	public static GameObject getLeechfinFishingSpot(Client client, WorldView worldview)
+	private LocalPoint findClosestLeechfinFishingPoint(Player player)
 	{
-		Scene scene = worldview.getScene();
-		WorldPoint playerLocation = client.getLocalPlayer().getWorldLocation();
-		Tile[][][] tiles = scene.getTiles();
+		if (player == null || leechfinFishingPoints.isEmpty())
+		{
+			return null;
+		}
+
+		LocalPoint playerLocation = player.getLocalLocation();
+
+		return leechfinFishingPoints.stream()
+			.min(Comparator.comparingInt(
+				spot -> spot.distanceTo(playerLocation)
+			))
+			.orElse(null);
+	}
+
+	private List<LocalPoint> findLeechfinFishingPoints(WorldView worldview)
+	{
+		List<LocalPoint> leechfinFishingSpots = new ArrayList<>();
+
+		Tile[][][] tiles = worldview.getScene().getTiles();
 		int z = worldview.getPlane();
 
 		for (int x = 0; x < tiles[z].length; ++x)
@@ -211,33 +271,21 @@ public class LeechfinFishingPlugin extends Plugin
 			for (int y = 0; y < tiles[z][x].length; ++y)
 			{
 				Tile tile = tiles[z][x][y];
-
 				if (tile == null)
-				{
-					continue;
-				}
-				if (tile.getWorldLocation().distanceTo(playerLocation) >= LeechfinFishingPlugin.SEARCH_RADIUS)
 				{
 					continue;
 				}
 
 				GameObject[] gameObjects = tile.getGameObjects();
-				if (gameObjects != null)
+				for (GameObject gameObject : gameObjects)
 				{
-					for (GameObject gameObject : gameObjects)
+					if (gameObject != null && gameObject.getId() == LEECHFIN_FISHING_SPOT_ID)
 					{
-						if (gameObject != null)
-						{
-							if (gameObject.getId() == LeechfinFishingPlugin.LeechfinFishingSpotID)
-							{
-								return gameObject;
-							}
-						}
+						leechfinFishingSpots.add(gameObject.getLocalLocation());
 					}
 				}
 			}
 		}
-		return null;
+		return leechfinFishingSpots;
 	}
-
 }
