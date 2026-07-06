@@ -38,7 +38,7 @@ public class LeechfinFishingPlugin extends Plugin
 
 	// manually coded ids until api updated
 	// varbit used to determine if actively fishing leechfin spot
-	public static final int ACTIVE_VARBIT_ID = 15454;
+	public static final int ACTIVE_VARBIT_ID = 16289;
 	// leechfin projectile and leechfin fishing spot game object ids
 	public static final int LEECHFIN_ID = 3992;
 	public static final int LEECHFIN_FISHING_SPOT_ID = 62193;
@@ -128,11 +128,11 @@ public class LeechfinFishingPlugin extends Plugin
 		{
 			activeLeechfin = leechfin.get(0);
 		}
-		activeLeechfinPoint = findLeechfinPoint(worldView, activeLeechfin);
+		activeLeechfinPoint = findPoint(worldView, activeLeechfin);
 
 		// now find next leechfin with a different x position
 		nextLeechfin = findNextLeechfin(activeLeechfin, leechfin);
-		nextLeechfinPoint = findLeechfinPoint(worldView, nextLeechfin);
+		nextLeechfinPoint = findPoint(worldView, nextLeechfin);
 	}
 
 	private List<Projectile> getSortedLeechfin()
@@ -144,40 +144,45 @@ public class LeechfinFishingPlugin extends Plugin
 			{
 				continue;
 			}
-
 			list.add(leechfinProjectile);
 		}
-
 		list.sort(Comparator.comparingDouble(Projectile::getRemainingCycles));
+
 		return list;
 	}
 
 	private boolean isValidLeechfin(Projectile leechfinProjectile)
 	{
+		// if projectile is not a leechfin, don't include
 		if (leechfinProjectile.getId() != LEECHFIN_ID)
 		{
 			return false;
 		}
-		LocalPoint pLocalSourcePoint = LocalPoint.fromWorld(client, leechfinProjectile.getSourcePoint());
-		if (pLocalSourcePoint == null)
+
+		LocalPoint localSourcePoint = LocalPoint.fromWorld(client, leechfinProjectile.getSourcePoint());
+		if (localSourcePoint == null)
 		{
 			return false;
 		}
+
 		// if source is more than 5 tiles north, don't include
-		if (pLocalSourcePoint.getY() > closestLeechfinFishingPoint.dy(MAX_NORTH_DISTANCE).getY())
+		if (localSourcePoint.getY() > closestLeechfinFishingPoint.dy(MAX_NORTH_DISTANCE).getY())
 		{
 			return false;
 		}
+
 		// if source is more 2 tiles east or west, don't include
-		if (Math.abs(pLocalSourcePoint.getX() - closestLeechfinFishingPoint.getX()) > MAX_X_OFFSET)
+		if (Math.abs(localSourcePoint.getX() - closestLeechfinFishingPoint.getX()) > MAX_X_OFFSET)
 		{
 			return false;
 		}
+
 		// if remaining cycles is less than a tick, don't include, it's too late to click
 		if (leechfinProjectile.getRemainingCycles() <= CLIENT_TICKS_PER_GAME_TICK)
 		{
 			return false;
 		}
+
 		return true;
 	}
 
@@ -189,13 +194,12 @@ public class LeechfinFishingPlugin extends Plugin
 		}
 
 		int idx = list.indexOf(active);
-
 		// if list does not contain active
 		if (idx == -1)
 		{
 			return list.isEmpty() ? null : list.get(0);
 		}
-		// if active is last list index, next would be out of range, so just return active
+		// if active is last list index, next would be out of range, so return null
 		if (idx + 1 >= list.size())
 		{
 			return null;
@@ -220,14 +224,9 @@ public class LeechfinFishingPlugin extends Plugin
 		return client.getVarbitValue(LeechfinFishingPlugin.ACTIVE_VARBIT_ID) == 1;
 	}
 
-	private LocalPoint findLeechfinPoint(WorldView worldView, Projectile projectile)
+	private LocalPoint findPoint(WorldView worldView, Projectile projectile)
 	{
 		if (projectile == null)
-		{
-			return null;
-		}
-		int projectileId = projectile.getId();
-		if (projectileId != LEECHFIN_ID)
 		{
 			return null;
 		}
@@ -245,6 +244,7 @@ public class LeechfinFishingPlugin extends Plugin
 			return null;
 		}
 
+		// have to compare LocalPoint with LocalPoint, so use getLocalLocation
 		LocalPoint playerLocation = player.getLocalLocation();
 
 		return leechfinFishingPoints.stream()
@@ -281,6 +281,7 @@ public class LeechfinFishingPlugin extends Plugin
 				}
 			}
 		}
+
 		return leechfinFishingSpots;
 	}
 }

@@ -84,7 +84,7 @@ public class LeechfinFishingOverlay extends Overlay
 				graphics,
 				worldView,
 				plugin.getActiveLeechfinPoint(),
-				0,
+				0,  // render at same tile as fishing spot
 				config.activeHighlightColor(),
 				config.activeFillColor()
 			);
@@ -96,7 +96,7 @@ public class LeechfinFishingOverlay extends Overlay
 				graphics,
 				worldView,
 				plugin.getNextLeechfinPoint(),
-				1,
+				1,  // render one tile north of fishing spot
 				config.nextHighlightColor(),
 				config.nextFillColor()
 			);
@@ -116,6 +116,8 @@ public class LeechfinFishingOverlay extends Overlay
 		{
 			return;
 		}
+
+		// use x position of leechfin, y position of fishing spot with yOffset applied
 		LocalPoint tileToHighlight = new LocalPoint(
 			leechfinPoint.getX(),
 			plugin.getClosestLeechfinFishingPoint()
@@ -123,6 +125,7 @@ public class LeechfinFishingOverlay extends Overlay
 				getY(),
 			worldView
 		);
+
 		renderTileOverlay(graphics, tileToHighlight, highlightColor, fillColor);
 
 	}
