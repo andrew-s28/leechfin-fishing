@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 @PluginDescriptor(
 	name = "Leechfin Fishing",
 	description = "Highlighting for leechfin fishing.",
-	tags = {"highlight", "fishing"}
+	tags = {"leechfin", "fishing", "highlight", "vampyrium"}
 )
 public class LeechfinFishingPlugin extends Plugin
 {

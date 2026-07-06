@@ -19,7 +19,7 @@ public interface LeechfinFishingConfig extends Config
 
 	@ConfigSection(
 		name = "Next tile",
-		description = "The next leechfin tile to be clicked after the active tile.",
+		description = "Next leechfin tile to be clicked after the active tile.",
 		position = 1
 	)
 	String nextTile = "nextTile";
@@ -28,7 +28,7 @@ public interface LeechfinFishingConfig extends Config
 		position = 1,
 		keyName = "highlightActiveTile",
 		name = "Highlight active tile",
-		description = "Highlights the active tile for leechfin fishing.",
+		description = "Whether to highlight the active tile.",
 		section = "activeTile"
 	)
 	default boolean highlightActiveTile()
@@ -41,7 +41,7 @@ public interface LeechfinFishingConfig extends Config
 		position = 2,
 		keyName = "activeHighlightColor",
 		name = "Highlight color",
-		description = "Highlight color for the active tile.",
+		description = "Configures the highlight color of the active tile.",
 		section = "activeTile"
 	)
 	default Color activeHighlightColor()
@@ -54,7 +54,7 @@ public interface LeechfinFishingConfig extends Config
 		position = 3,
 		keyName = "activeFillColor",
 		name = "Fill color",
-		description = "Fill color for the active tile.",
+		description = "Configures the fill color of the active tile.",
 		section = "activeTile"
 	)
 	default Color activeFillColor()
@@ -66,7 +66,7 @@ public interface LeechfinFishingConfig extends Config
 		position = 1,
 		keyName = "highlightNextTile",
 		name = "Highlight next tile",
-		description = "Highlights the next tile for leechfin fishing.",
+		description = "Whether to highlight the next tile.",
 		section = "nextTile"
 	)
 	default boolean highlightNextTile()
@@ -79,7 +79,7 @@ public interface LeechfinFishingConfig extends Config
 		position = 2,
 		keyName = "nextHighlightColor",
 		name = "Highlight color",
-		description = "Highlight color for the active tile.",
+		description = "Configures the highlight color of the next tile.",
 		section = "nextTile"
 	)
 	default Color nextHighlightColor()
@@ -92,7 +92,7 @@ public interface LeechfinFishingConfig extends Config
 		position = 3,
 		keyName = "nextFillColor",
 		name = "Fill color",
-		description = "Fill color for the active tile.",
+		description = "Configures the fill color of the next tile.",
 		section = "nextTile"
 	)
 	default Color nextFillColor()
@@ -105,7 +105,7 @@ public interface LeechfinFishingConfig extends Config
 		position = 2,
 		keyName = "leechfinSpotColor",
 		name = "Leechfin spot color",
-		description = "Color to highlight leechfin fishing spot when not actively fishing."
+		description = "Configures the highlight color of the leechfin fishing spot when not actively fishing."
 	)
 	default Color leechfinSpotColor()
 	{
@@ -116,8 +116,8 @@ public interface LeechfinFishingConfig extends Config
 	@ConfigItem(
 		position = 2,
 		keyName = "fullInventoryColor",
-		name = "Full Inventory Color",
-		description = "Color to highlight leechfin fishing spot when inventory is full."
+		name = "Full inventory color",
+		description = "Configures the highlight color of the leechfin fishing spot when inventory is full."
 	)
 	default Color fullInventoryColor()
 	{
