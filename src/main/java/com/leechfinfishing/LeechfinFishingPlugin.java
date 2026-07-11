@@ -37,7 +37,7 @@ public class LeechfinFishingPlugin extends Plugin
 
 	// manually coded ids until api updated
 	// varbit used to determine if actively fishing leechfin spot
-	public static final int ACTIVE_VARBIT_ID = 16289;
+	public static final int ACTIVE_VARBIT_ID = 15454;
 	// leechfin projectile and leechfin fishing spot game object ids
 	public static final int LEECHFIN_ID = 3992;
 	public static final int LEECHFIN_FISHING_SPOT_ID = 62193;
